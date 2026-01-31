@@ -1,0 +1,15 @@
+services:
+  scraper:
+    build: .
+    image: product-scraper
+    container_name: product-scraper
+    shm_size: '2gb'
+
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/profiles
+    environment:
+      - NODE_ENV=production
+
+    command: npm run dev

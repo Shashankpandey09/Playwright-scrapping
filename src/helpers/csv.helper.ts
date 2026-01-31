@@ -1,4 +1,4 @@
-// CSV writing utilities
+
 
 import { createObjectCsvWriter } from 'csv-writer';
 import * as fs from 'fs';
@@ -41,18 +41,17 @@ export function transformToCSV(sku: string, source: string, data: ScrapedProduct
 function cleanPrice(price: string): string {
     if (!price) return 'N/A';
 
-    // strip common prefixes
+
     let cleaned = price.replace(/current price/i, '').trim();
     cleaned = cleaned.replace(/now/i, '').trim();
     cleaned = cleaned.replace(/was.*$/i, '').trim();
 
-    // extract price with currency
+
     const priceMatch = cleaned.match(/(?:[$₹€£¥]|INR|USD|EUR)\s*[\d,]+\.?\d*/i);
     if (priceMatch) {
         return priceMatch[0].replace(/INR\s*/i, '₹');
     }
 
-    // fallback to plain numeric
     const numMatch = cleaned.match(/[\d,]+\.?\d*/);
     return numMatch ? numMatch[0] : cleaned;
 }

@@ -5,30 +5,18 @@ import { ScrapedProduct } from '../types';
 export class AmazonPage extends BasePage {
     private selectors = {
         searchBox: 'input#twotabsearchtextbox',
-        // More robust container selector
         searchResults: '[data-component-type="s-search-result"], .s-result-item[data-asin]',
-        // Title: multiple variants including modern grid/list specific classes
         title: [
             'h2 a.a-link-normal span',
             '[data-cy="title-recipe"] h2 span',
             '.a-size-medium.a-color-base.a-text-normal',
             '.a-size-base-plus.a-color-base.a-text-normal'
         ].join(','),
-        // Price: handle whole/fraction parts and ranges
         price: [
-            // 1. Current price (exclude strikethrough/text-price which are List Prices)
             '.a-price:not([data-a-strike="true"]):not(.a-text-price) .a-offscreen',
-
-            // 2. Whole price part (visual fallback)
             '.a-price:not([data-a-strike="true"]) .a-price-whole',
-
-            // 3. Simple color price (older layouts)
             'span.a-color-price',
-
-            // 4. Secondary offers (e.g. "No featured offers available")
             '[data-cy="secondary-offer-recipe"] .a-color-base',
-
-            // 5. Fallback generic price recipe
             '[data-cy="price-recipe"] .a-price .a-offscreen'
         ].join(','),
         rating: [
@@ -69,7 +57,6 @@ export class AmazonPage extends BasePage {
 
     async extractProducts(): Promise<any[]> {
         const products = await this.page.evaluate((selectors) => {
-            // Find all valid product containers with an ASIN
             const items = Array.from(document.querySelectorAll(selectors.searchResults))
                 .filter(el => el.getAttribute('data-asin') && el.getAttribute('data-asin') !== '');
 
@@ -79,7 +66,6 @@ export class AmazonPage extends BasePage {
                 const asin = el.getAttribute('data-asin');
                 if (!asin) return;
 
-                // Helper to find text from multiple selectors
                 const getText = (selectorStr: string) => {
                     const sels = selectorStr.split(',');
                     for (const s of sels) {
@@ -110,20 +96,16 @@ export class AmazonPage extends BasePage {
     async scrapeProduct(sku: string): Promise<ScrapedProduct | null> {
         const products = await this.extractProducts();
 
-        // Strategy 1: Exact Match of ASIN
         let match = products.find(p => p.asin === sku);
 
-        // Strategy 2: Fallback to first result (if valid)
-        // This is often needed when Amazon returns the product but the ASIN in the list data-attribute
-        // logic might be slightly different than input (e.g. variation parent vs child)
+
         if (!match && products.length > 0) {
             console.log(`Exact ASIN match not found, picking top result: ${products[0].asin}`);
             match = products[0];
         }
 
         if (!match) {
-            // Debugging aid
-            console.log(`    Extracted ${products.length} products but none matched.`);
+            console.log(`extracted ${products.length} products but none matched`);
             return null;
         }
 

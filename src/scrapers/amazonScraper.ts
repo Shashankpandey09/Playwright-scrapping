@@ -9,11 +9,12 @@ chromium.use(StealthPlugin());
 const DEFAULT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36';
 
 export async function scrapeAmazon(sku: string): Promise<ScrapedProduct | null> {
-    console.log(`\nScraping Amazon for SKU: ${sku}`);
+    console.log(`Processing ${sku}`);
 
     const browser = await chromium.launch({
         headless: true,
-        args: ['--disable-blink-features=AutomationControlled']
+        args: ['--disable-blink-features=AutomationControlled'],
+        channel: 'chrome'
     });
 
     try {
@@ -25,13 +26,10 @@ export async function scrapeAmazon(sku: string): Promise<ScrapedProduct | null> 
         const page = await context.newPage();
         const amazonPage = new AmazonPage(page, context);
 
-        console.log('  Step 1: Navigating to Amazon...');
+
+
         await amazonPage.goToHome();
-
-        console.log(`  Step 2: Searching for '${sku}'...`);
         await amazonPage.search(sku);
-
-        console.log('  Step 3: Extracting product data...');
         const product = await amazonPage.scrapeProduct(sku);
 
         if (!product) {

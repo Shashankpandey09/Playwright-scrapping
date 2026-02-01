@@ -1,7 +1,7 @@
 import { Page, BrowserContext, Locator } from 'playwright';
 import { BasePage } from './BasePage';
 import { ScrapedProduct } from '../types';
-import { generateBezierPath } from '../utils/bezier';
+
 
 export class WalmartPage extends BasePage {
     private selectors = {
@@ -28,7 +28,7 @@ export class WalmartPage extends BasePage {
     }
 
     async searchForItem(item: string): Promise<void> {
-        console.log(`    [INFO] Searching for item in Walmart search bar: ${item}`);
+        console.log(`searching walmart for: ${item}`);
 
         try {
             await this.page.waitForSelector(this.selectors.searchBox, { timeout: 10000 });
@@ -37,17 +37,15 @@ export class WalmartPage extends BasePage {
             await searchBox.click();
             await this.delay(500, 1000);
 
-            // Human-like typing
             await this.page.keyboard.type(item, { delay: 100 });
             await this.delay(500, 1000);
 
             await this.page.keyboard.press('Enter');
-            // Wait for navigation to product page or search results
             await this.page.waitForLoadState('domcontentloaded');
-            await this.delay(3000, 5000); // Wait for results to populate
+            await this.delay(3000, 5000);
 
         } catch (error: any) {
-            console.log(`    [WARN] Failed to search for item: ${error.message}`);
+            console.log(`search failed: ${error.message}`);
         }
     }
 
@@ -57,64 +55,60 @@ export class WalmartPage extends BasePage {
     }
 
     async solveCaptcha(): Promise<boolean> {
-        console.log('    [INFO] Attempting to solve Press & Hold captcha...');
-
-        const captchaButton = this.page.locator('#px-captcha');
-        const isVisible = await captchaButton.isVisible().catch(() => false);
-
-        if (!isVisible) {
-            return false;
-        }
+        console.log('got captcha, trying to solve...');
 
         try {
-            const box = await captchaButton.boundingBox();
-            if (!box) return false;
-
-            const centerX = box.x + box.width / 2;
-            const centerY = box.y + box.height / 2;
-
-            // Human-like approach: Ghost Cursor (Bezier Curve)
-            const startPoint = { x: 100, y: 100 };
-            const endPoint = { x: centerX, y: centerY };
-
-            const path = generateBezierPath(startPoint, endPoint, 50);
-
-            for (const point of path) {
-                // Variable speed (Fitts's Law simulation via simple deviation)
-                await this.page.mouse.move(point.x, point.y, { steps: 1 });
-                // Random delays to simulate thought/reaction
-                if (Math.random() > 0.7) await this.delay(Math.random() * 30, Math.random() * 60);
+            if (this.page.isClosed()) {
+                console.log('page died, cant solve');
+                return false;
             }
 
-            await this.delay(300, 800); // Hover before click
+            const captchaButton = this.page.locator('#px-captcha');
+            const isVisible = await captchaButton.isVisible().catch(() => false);
+
+            if (!isVisible) {
+                return false;
+            }
+
+            const loc = await captchaButton.boundingBox();
+            if (!loc) return false;
+
+            const x_loc = loc.x + loc.width / 2;
+            const y_loc = loc.y + loc.height / 2;
+
+            await this.page.mouse.move(x_loc, y_loc, { steps: 25 });
+
+            await this.delay(300, 800);
             await this.page.mouse.down();
-            console.log('    [INFO] Holding button (simulating human jitter via Ghost Cursor)...');
+            console.log('holding...');
 
-            // PerimeterX "Press & Hold" usually requires 5-10 seconds.
-            const holdTime = 7000 + Math.random() * 4000;
-            const startTime = Date.now();
+            const t_hold = 12000 + Math.random() * 2000;
+            await this.delay(t_hold, t_hold + 500);
 
-            while (Date.now() - startTime < holdTime) {
-                // Micro-movements while holding (jitter)
-                if (Math.random() > 0.3) {
-                    const driftX = (Math.random() - 0.5) * 3;
-                    const driftY = (Math.random() - 0.5) * 3;
-                    await this.page.mouse.move(centerX + driftX, centerY + driftY);
-                }
-                await this.delay(100, 300);
+            if (this.page.isClosed()) {
+                console.log('page crashed mid-hold');
+                return false;
             }
 
             await this.page.mouse.up();
-            console.log('    [INFO] Released button. Waiting for unlock...');
+            console.log('released, waiting...');
 
-            // Wait for the redirect/reload which solves the captcha
             await this.delay(4000, 7000);
+
+            if (this.page.isClosed()) {
+                console.log('page died after release');
+                return false;
+            }
 
             const stillHasCaptcha = await this.hasCaptcha();
             return !stillHasCaptcha;
 
-        } catch (error) {
-            console.log('    [WARN] Captcha solve failed');
+        } catch (error: any) {
+            if (error.message?.includes('closed') || error.message?.includes('Target')) {
+                console.log('browser crashed during captcha');
+            } else {
+                console.log('captcha failed');
+            }
             return false;
         }
     }
@@ -122,12 +116,11 @@ export class WalmartPage extends BasePage {
 
 
     async extractFromDOM(sku: string): Promise<ScrapedProduct | null> {
-        // Use user-provided robust selectors based on screenshots
         const selectors = {
-            title: '[data-automation-id="product-title"], h1[itemprop="name"], .prod-ProductTitle',
-            price: '[data-seo-id="hero-price"], [itemprop="price"], .span[aria-hidden="false"]',
-            rating: '.f7.ph1, [itemprop="ratingValue"], .rating-number',
-            reviews: '[data-testid="item-review-section-link"], [itemprop="ratingCount"], h3.w_kV33'
+            title: '[data-automation-id="product-title"]',
+            price: '[data-seo-id="hero-price"]',
+            rating: '.f7.ph1',
+            reviews: '[data-testid="item-review-section-link"]'
         };
 
         try {
@@ -158,18 +151,16 @@ export class WalmartPage extends BasePage {
 
         if (!product || !product.title) return null;
 
-        // Clean up rating (remove parentheses e.g. "(4.5)")
         let cleanRating = product.rating;
         const ratingMatch = product.rating.match(/\(?([\d.]+)\)?/);
         if (ratingMatch) {
             cleanRating = ratingMatch[1];
         }
 
-        // Clean up review count (extract number from "6,195 ratings" or "Showing 1-3 of 2,397 reviews")
         let cleanReviews = product.reviews;
         const reviewMatch = product.reviews.match(/([\d,]+)\s*(?:ratings|reviews)/i) || product.reviews.match(/of\s+([\d,]+)\s+reviews/i);
         if (reviewMatch) {
-            cleanReviews = `${reviewMatch[1]} reviews`; // Standardize format
+            cleanReviews = `${reviewMatch[1]} reviews`;
         }
 
         return {

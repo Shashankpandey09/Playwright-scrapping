@@ -1,17 +1,28 @@
 {
-  "name": "playwrite-scrapping",
+  "name": "product-scraper-assessment",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "TypeScript + Playwright web scraper for Amazon and Walmart products",
+  "main": "dist/scraper.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev":"tsc -b && node dist/index.js"
+    "start": "tsc && node dist/scraper.js",
+    "dev": "tsc && node dist/scraper.js",
+    "build": "tsc",
+    "stress:amazon": "tsc && node dist/concurrent-stress-test.js",
+    "stress:walmart": "tsc && node dist/stress-test-walmart.js",
+    "generate:data": "tsc && node dist/generate-amazon-50.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@types/node": "^25.0.6",
-    "playwright": "^1.57.0"
+    "anticaptcha": "^2.2.0",
+    "csv-writer": "^1.6.0",
+    "ghost-cursor": "^1.4.2",
+    "playwright": "^1.57.0",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "user-agents": "^1.1.669"
   }
 }

@@ -1,1 +1,1 @@
-{"root":["./src/index.ts"],"version":"5.6.2"}
+{"root":["./src/concurrent-stress-test.ts","./src/scraper.ts","./src/stress-test-walmart.ts","./src/scrapers/amazonscraper.ts","./src/scrapers/walmartscraper.ts","./src/utils/utils.ts"],"version":"5.6.2"}

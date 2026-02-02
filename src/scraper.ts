@@ -2,25 +2,24 @@ import * as fs from 'fs';
 import * as path from 'path';
 import pLimit from 'p-limit';
 import { scrapeAmazon } from './scrapers/amazonScraper';
-import { scrapeWalmart } from './scrapers/walmartScraper';
+import { scrapeWalmartWithContext } from './scrapers/walmartScraper';
 import { ProductData, SKUItem, SKUList } from './types';
 import { writeProductsToCSV, transformToCSV, retryWithBackoff, logError, clearErrorLog } from './helpers';
+import { launchWorker, verifyWorkerIP } from './helpers/worker.helper';
+import { PROXY_CONFIG } from './proxy.config';
+import { BrowserContext } from 'playwright';
 
-// Configuration
-const MAX_CONCURRENCY = 1; // Keep low to avoid detection
+const MAX_CONCURRENCY = 1;
 const MAX_RETRIES = 2;
+const VERIFY_IP = false;
 
 async function main() {
-    console.log("Starting product scraper...\n");
-
-    // Clear old logs
     clearErrorLog();
     const csvPath = path.join(process.cwd(), 'product_data.csv');
     if (fs.existsSync(csvPath)) {
         fs.unlinkSync(csvPath);
     }
 
-    // Load SKUs
     const skusPath = path.join(process.cwd(), 'skus.json');
     if (!fs.existsSync(skusPath)) {
         console.error('Error: skus.json not found!');
@@ -28,39 +27,36 @@ async function main() {
     }
 
     const skuData: SKUList = JSON.parse(fs.readFileSync(skusPath, 'utf-8'));
-    console.log(`Loaded ${skuData.skus.length} SKUs from skus.json\n`);
+    console.log(`Loaded ${skuData.skus.length} SKUs`);
 
     const results: ProductData[] = [];
-
-    // Setup concurrency limiter  
     const limit = pLimit(MAX_CONCURRENCY);
-
-    // Create tasks
-    const tasks = skuData.skus.map(item =>
-        limit(() => processItem(item, results))
+    const tasks = skuData.skus.map((item, index) =>
+        limit(() => processItemWithWorker(item, index % MAX_CONCURRENCY, results))
     );
 
-    console.log(`Starting scrape with ${MAX_CONCURRENCY} concurrent workers...\n`);
-
-    // Execute all tasks
+    console.log(`Starting ${MAX_CONCURRENCY} workers...`);
     await Promise.all(tasks);
 
-    // Write results
     if (results.length > 0) {
         await writeProductsToCSV(results);
-    } else {
-        console.log('\nNo products were successfully scraped.');
     }
 
-    // Summary
-    console.log('\n--- SCRAPING COMPLETE ---');
-    console.log(`Successfully scraped: ${results.length}/${skuData.skus.length}`);
-    console.log('Output: product_data.csv');
-    console.log('Errors: errors.log');
+    console.log(`Done. Scraped: ${results.length}/${skuData.skus.length}`);
 }
 
-async function processItem(item: SKUItem, results: ProductData[]): Promise<void> {
+async function processItemWithWorker(
+    item: SKUItem,
+    workerIndex: number,
+    results: ProductData[]
+): Promise<void> {
+    let ctx: BrowserContext | null = null;
+
     try {
+        ctx = await launchWorker({ workerIndex, headless: true });
+
+        if (VERIFY_IP) await verifyWorkerIP(ctx);
+
         let scrapedData = null;
 
         if (item.Type === 'Amazon') {
@@ -77,7 +73,8 @@ async function processItem(item: SKUItem, results: ProductData[]): Promise<void>
         } else if (item.Type === 'Walmart') {
             scrapedData = await retryWithBackoff(
                 async () => {
-                    const result = await scrapeWalmart(item.SKU);
+                    if (!ctx) throw new Error('Context not initialized');
+                    const result = await scrapeWalmartWithContext(item.SKU, ctx);
                     if (!result) throw new Error('Scrape returned null');
                     return result;
                 },
@@ -93,12 +90,15 @@ async function processItem(item: SKUItem, results: ProductData[]): Promise<void>
         if (scrapedData) {
             const productData = transformToCSV(item.SKU, item.Type, scrapedData);
             results.push(productData);
-        } else {
-            logError(item.SKU, item.Type, 'Scraping returned null');
         }
 
     } catch (err: any) {
-        logError(item.SKU, item.Type, `Scraping failed: ${err.message}`);
+        logError(item.SKU, item.Type, `Worker ${workerIndex} failed: ${err.message}`);
+    } finally {
+
+        if (ctx) {
+            await ctx.close();
+        }
     }
 }
 

@@ -1,4 +1,4 @@
-// Retry logic with exponential backoff
+
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -25,7 +25,7 @@ export async function retryWithBackoff<T>(
                 throw err;
             }
 
-            // exponential backoff: 1s, 2s, 4s...
+
             const waitTime = 1000 * Math.pow(2, attempt);
             console.log(`Retry ${attempt + 1}/${maxRetries} for ${sku} after ${waitTime}ms...`);
             await sleep(waitTime);

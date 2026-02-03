@@ -4,7 +4,7 @@
   "description": "TypeScript + Playwright web scraper for Amazon and Walmart products",
   "main": "dist/scraper.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "start": "tsc && node dist/scraper.js",
     "dev": "tsc && node dist/scraper.js",
     "build": "tsc",
@@ -20,9 +20,15 @@
     "anticaptcha": "^2.2.0",
     "csv-writer": "^1.6.0",
     "ghost-cursor": "^1.4.2",
+    "p-limit": "^3.1.0",
     "playwright": "^1.57.0",
     "playwright-extra": "^4.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "user-agents": "^1.1.669"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6"
   }
 }

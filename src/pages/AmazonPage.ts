@@ -1,6 +1,6 @@
 import { Page, BrowserContext } from 'playwright';
 import { BasePage } from './BasePage';
-import { ScrapedProduct } from '../utils/utils';
+import { ScrapedProduct } from '../types';
 
 export class AmazonPage extends BasePage {
     private selectors = {
@@ -117,13 +117,13 @@ export class AmazonPage extends BasePage {
         // This is often needed when Amazon returns the product but the ASIN in the list data-attribute
         // logic might be slightly different than input (e.g. variation parent vs child)
         if (!match && products.length > 0) {
-            console.log(`    ⚠️ Exact ASIN match not found, picking top result: ${products[0].asin}`);
+            console.log(`Exact ASIN match not found, picking top result: ${products[0].asin}`);
             match = products[0];
         }
 
         if (!match) {
             // Debugging aid
-            console.log(`    ❌ Extracted ${products.length} products but none matched.`);
+            console.log(`    Extracted ${products.length} products but none matched.`);
             return null;
         }
 

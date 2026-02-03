@@ -99,9 +99,14 @@
     // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that are included with TypeScript. */
     "skipLibCheck": true /* Skip type checking all .d.ts files. */
   },
+  "include": [
+    "src/**/*"
+  ],
   "exclude": [
     "node_modules",
     "dist",
+    "tests",
+    "jest.config.js",
     "generate-amazon-50.ts",
     "generate_agents.ts.bak"
   ]

@@ -1,6 +1,6 @@
 import { Page, BrowserContext, Locator } from 'playwright';
 import { BasePage } from './BasePage';
-import { ScrapedProduct } from '../utils/utils';
+import { ScrapedProduct } from '../types';
 import { generateBezierPath } from '../utils/bezier';
 
 export class WalmartPage extends BasePage {
@@ -119,58 +119,7 @@ export class WalmartPage extends BasePage {
         }
     }
 
-    async extractFromNextData(sku: string): Promise<ScrapedProduct | null> {
-        const html = await this.getPageContent();
 
-        if (html.includes('px-captcha') || html.includes('blocked')) {
-            return null;
-        }
-
-        const match = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
-        if (!match) return null;
-
-        try {
-            const data = JSON.parse(match[1]);
-            let product: any = null;
-
-            product = data?.props?.pageProps?.initialData?.data?.product;
-
-            if (!product) {
-                const searchItems = data?.props?.pageProps?.initialData?.searchResult?.itemStacks?.[0]?.items;
-                if (searchItems?.length > 0) {
-                    product = searchItems[0];
-                }
-            }
-
-            if (!product) {
-                const contentModules = data?.props?.pageProps?.initialData?.contentLayout?.modules;
-                if (contentModules) {
-                    for (const mod of contentModules) {
-                        if (mod?.configs?.products?.[0]) {
-                            product = mod.configs.products[0];
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if (!product) return null;
-
-            const priceInfo = product.priceInfo || {};
-            const price = priceInfo.currentPrice?.price || priceInfo.linePrice || product.price;
-
-            return {
-                sku,
-                title: (product.name || product.title || 'Unknown').substring(0, 200),
-                price: typeof price === 'number' ? `$${price.toFixed(2)}` : (price ? String(price) : 'N/A'),
-                rating: String(product.ratingsInfo?.averageRating || product.averageRating || 'N/R'),
-                reviews: `${product.ratingsInfo?.numberOfReviews || product.numberOfReviews || 0} reviews`,
-                description: (product.shortDescription || product.description || 'Walmart Product').substring(0, 500)
-            };
-        } catch {
-            return null;
-        }
-    }
 
     async extractFromDOM(sku: string): Promise<ScrapedProduct | null> {
         // Use user-provided robust selectors based on screenshots

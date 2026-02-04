@@ -39,7 +39,7 @@ npm install
 
 2. **Install Chromium binaries:**
 ```bash
-npx playwright install chromium
+npx playwright install 
 
 ```
 

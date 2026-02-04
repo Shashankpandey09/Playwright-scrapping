@@ -112,9 +112,25 @@ export async function launchWorker(config: WorkerConfig): Promise<BrowserContext
 }
 
 export async function deleteWorkerProfile(workerIndex: number): Promise<void> {
-    // No longer needed - each job uses a unique timestamped profile
-    // Old profiles can be cleaned up manually via `rimraf ./profiles` on startup
-    console.log(`[Worker ${workerIndex}] Skipping profile deletion (using disposable profiles)`);
+    const profileDir = path.join(process.cwd(), 'profiles', `worker_${workerIndex}`);
+    if (!fs.existsSync(profileDir)) return;
+
+    let attempts = 0;
+    const maxRetries = 3;
+
+    while (attempts < maxRetries) {
+        try {
+            console.log(`[Worker ${workerIndex}] Deleting profile (Hard Reset)... Attempt ${attempts + 1}`);
+            fs.rmSync(profileDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 1000 });
+            console.log(`[Worker ${workerIndex}] Profile deleted successfully.`);
+            return;
+        } catch (err: any) {
+            attempts++;
+            console.error(`[Worker ${workerIndex}] Failed to delete profile (Attempt ${attempts}): ${err.message}`);
+            if (attempts >= maxRetries) console.error(`[Worker ${workerIndex}] GIVING UP on profile deletion.`);
+            await new Promise(r => setTimeout(r, 2000));
+        }
+    }
 }
 
 export async function verifyWorkerIP(ctx: BrowserContext): Promise<void> {

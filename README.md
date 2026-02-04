@@ -11,7 +11,7 @@ Using Docker ensures a consistent environment with all necessary Linux dependenc
 
 1. **Clone the repository:**
 ```bash
-git clone  https://github.com/Shashankpandey09/Webscraping
+git clone  https://github.com/Shashankpandey09/Playwright-scrapping.git
 cd product-scraper
 
 ```

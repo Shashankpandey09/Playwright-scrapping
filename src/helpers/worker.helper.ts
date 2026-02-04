@@ -25,7 +25,9 @@ const STEALTH_ARGS = [
 
 export async function launchWorker(config: WorkerConfig): Promise<BrowserContext> {
     const { workerIndex, headless = true } = config;
-    const profileDir = path.join(process.cwd(), 'profiles', `worker_${workerIndex}`);
+    // Use unique timestamped profile to avoid Windows Crashpad lock issues
+    const timestamp = Date.now();
+    const profileDir = path.join(process.cwd(), 'profiles', `worker_${workerIndex}_${timestamp}`);
     const workerIdentity = IDENTITY_POOL[Math.floor(Math.random() * IDENTITY_POOL.length)];
     const contextOptions: any = {
         channel: 'chrome',
@@ -73,26 +75,46 @@ export async function launchWorker(config: WorkerConfig): Promise<BrowserContext
         }
     }
 
-    const ctx = await chromium.launchPersistentContext(profileDir, contextOptions);
 
-    // Get or create page
-    const page = ctx.pages().length > 0 ? ctx.pages()[0] : await ctx.newPage();
 
-    await page.addInitScript(() => {
-        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-        (window as any).chrome = { runtime: {} };
-        Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-        Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+    let launchAttempts = 0;
+    const maxLaunchRetries = 3;
 
-        const origGetParam = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function (param) {
-            if (param === 37445) return 'Intel Inc.';
-            if (param === 37446) return 'Intel Iris OpenGL Engine';
-            return origGetParam.call(this, param);
-        };
-    });
+    while (launchAttempts < maxLaunchRetries) {
+        try {
+            const ctx = await chromium.launchPersistentContext(profileDir, contextOptions);
+            const page = ctx.pages().length > 0 ? ctx.pages()[0] : await ctx.newPage();
 
-    return ctx;
+
+            await page.addInitScript(() => {
+                Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                (window as any).chrome = { runtime: {} };
+                Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+                Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+                const origGetParam = WebGLRenderingContext.prototype.getParameter;
+                WebGLRenderingContext.prototype.getParameter = function (param) {
+                    if (param === 37445) return 'Intel Inc.';
+                    if (param === 37446) return 'Intel Iris OpenGL Engine';
+                    return origGetParam.call(this, param);
+                };
+            });
+
+            return ctx;
+        } catch (err: any) {
+            launchAttempts++;
+            console.error(`[Worker ${workerIndex}] Launch attempt ${launchAttempts} failed: ${err.message}`);
+            if (launchAttempts >= maxLaunchRetries) throw err;
+            await new Promise(r => setTimeout(r, 2000)); // Wait 2s before retry
+        }
+    }
+
+    throw new Error(`Worker ${workerIndex} failed to launch after ${maxLaunchRetries} attempts`);
+}
+
+export async function deleteWorkerProfile(workerIndex: number): Promise<void> {
+    // No longer needed - each job uses a unique timestamped profile
+    // Old profiles can be cleaned up manually via `rimraf ./profiles` on startup
+    console.log(`[Worker ${workerIndex}] Skipping profile deletion (using disposable profiles)`);
 }
 
 export async function verifyWorkerIP(ctx: BrowserContext): Promise<void> {

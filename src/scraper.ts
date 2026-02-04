@@ -4,8 +4,8 @@ import pLimit from 'p-limit';
 import { scrapeAmazon } from './scrapers/amazonScraper';
 import { scrapeWalmartWithContext } from './scrapers/walmartScraper';
 import { ProductData, SKUItem, SKUList } from './types';
-import { writeProductsToCSV, transformToCSV, retryWithBackoff, logError, clearErrorLog } from './helpers';
-import { launchWorker, verifyWorkerIP } from './helpers/worker.helper';
+import { writeProductsToCSV, transformToCSV, retryWithBackoff, logError, clearErrorLog, randomDelay } from './helpers';
+import { launchWorker, verifyWorkerIP, deleteWorkerProfile } from './helpers/worker.helper';
 import { PROXY_CONFIG } from './proxy.config';
 import { BrowserContext } from 'playwright';
 
@@ -51,6 +51,7 @@ async function processItemWithWorker(
     results: ProductData[]
 ): Promise<void> {
     let ctx: BrowserContext | null = null;
+    let shouldResetProfile = false;
 
     try {
         ctx = await launchWorker({ workerIndex, headless: true });
@@ -94,10 +95,17 @@ async function processItemWithWorker(
 
     } catch (err: any) {
         logError(item.SKU, item.Type, `Worker ${workerIndex} failed: ${err.message}`);
+        if (item.Type === 'Walmart') {
+            shouldResetProfile = true;
+        }
     } finally {
 
         if (ctx) {
             await ctx.close();
+        }
+
+        if (shouldResetProfile) {
+            await deleteWorkerProfile(workerIndex);
         }
     }
 }

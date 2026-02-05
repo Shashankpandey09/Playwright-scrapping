@@ -7,8 +7,9 @@ import * as fs from 'fs';
 import { PROXY_CONFIG, GetProxyUsername } from '../proxy.config';
 import { IDENTITY_POOL } from '../utils/identity';
 
-chromium.use(StealthPlugin());
 
+chromium.use(StealthPlugin());
+let profileVersion = 0;
 export interface WorkerConfig {
     workerIndex: number;
     headless?: boolean;
@@ -27,7 +28,7 @@ export async function launchWorker(config: WorkerConfig): Promise<BrowserContext
     const { workerIndex, headless = true } = config;
     // Use unique timestamped profile to avoid Windows Crashpad lock issues
     const timestamp = Date.now();
-    const profileDir = path.join(process.cwd(), 'profiles', `worker_${workerIndex}_${timestamp}`);
+    const profileDir = path.join(process.cwd(), 'profiles', `worker_${workerIndex} ${profileVersion}`);
     const workerIdentity = IDENTITY_POOL[Math.floor(Math.random() * IDENTITY_POOL.length)];
     const contextOptions: any = {
         channel: 'chrome',
@@ -113,6 +114,7 @@ export async function launchWorker(config: WorkerConfig): Promise<BrowserContext
 
 export async function deleteWorkerProfile(workerIndex: number): Promise<void> {
     // Profiles are disposable (timestamped) - auto-cleaned on next `npm run dev`
+    profileVersion++;
     console.log(`[Worker ${workerIndex}] Profile cleanup skipped (using disposable profiles)`);
 }
 

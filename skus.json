@@ -15,6 +15,26 @@
         {
             "Type": "Amazon",
             "SKU": "B0CT4BB651"
+        },
+        {
+            "Type": "Walmart",
+            "SKU": "16402301141"
+        },
+        {
+            "Type": "Walmart",
+            "SKU": "14551419"
+        },
+        {
+            "Type": "Walmart",
+            "SKU": "12385200517"
+        },
+        {
+            "Type": "Walmart",
+            "SKU": "15813024789"
+        },
+        {
+            "Type": "Walmart",
+            "SKU": "113202282"
         }
     ]
 }

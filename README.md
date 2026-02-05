@@ -11,7 +11,7 @@ Using Docker ensures a consistent environment with all necessary Linux dependenc
 
 1. **Clone the repository:**
 ```bash
-git clone  https://github.com/Shashankpandey09/Webscraping
+git clone  https://github.com/Shashankpandey09/Playwright-scrapping.git
 cd product-scraper
 
 ```
@@ -96,7 +96,7 @@ Implemented randomized, human-like delays between actions.
 Used niche User-Agents (Apple TV / PSP) which have lower "risk scores" than common desktop strings.
 
 
-**To move from this 900-item test to a system that handles 100,000+ products, I would implement the following plan:**
+6.**To move from this 900-item test to a system that handles 100,000+ products, I would implement the following plan:**
 
 **A. A Team of Workers (Distributed System)**
 Right now, one script does everything. At scale, I would use a Central Queue (like Redis) to hand out tasks to a "team" of workers running in Docker. Each worker would grab a few SKUs, finish them, and reset. This prevents the system from getting slow or "leaking" memory over time.

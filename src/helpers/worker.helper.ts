@@ -28,7 +28,7 @@ export async function launchWorker(config: WorkerConfig): Promise<BrowserContext
     const { workerIndex, headless = true } = config;
     // Use unique timestamped profile to avoid Windows Crashpad lock issues
     const timestamp = Date.now();
-    const profileDir = path.join(process.cwd(), 'profiles', `worker_${workerIndex} ${profileVersion}`);
+    const profileDir = path.join(process.cwd(), 'profiles', `worker_${workerIndex}_${profileVersion}`);
     const workerIdentity = IDENTITY_POOL[Math.floor(Math.random() * IDENTITY_POOL.length)];
     const contextOptions: any = {
         channel: 'chrome',

@@ -138,6 +138,7 @@ export async function launchWorker(config: WorkerConfig): Promise<BrowserContext
 }
 
 export async function deleteWorkerProfile(workerIndex: number): Promise<void> {
+    // Profiles are disposable (timestamped) - auto-cleaned on next `npm run dev`
     profileVersion++;
     console.log(`[Worker ${workerIndex}] Profile cleanup skipped (using disposable profiles)`);
 }

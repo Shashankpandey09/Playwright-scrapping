@@ -1,7 +1,7 @@
 import { Page, BrowserContext, Locator } from 'playwright';
 import { BasePage } from './BasePage';
 import { ScrapedProduct } from '../types';
-
+import { humanMouseMove, humanScroll } from '../helpers/human-behavior.helper';
 
 export class WalmartPage extends BasePage {
     private selectors = {
@@ -23,8 +23,79 @@ export class WalmartPage extends BasePage {
     }
 
     async goToProduct(sku: string): Promise<void> {
-        await this.navigate(`https://www.walmart.com/ip/${sku}`);
-        await this.delay(2000, 3000);
+        const foundViaSearch = await this.goToProductViaSearch(sku);
+
+        if (!foundViaSearch) {
+            console.log('  Search failed, using direct URL...');
+            await this.navigate(`https://www.walmart.com/ip/${sku}`);
+            await this.delay(2000, 3000);
+        }
+    }
+
+    async goToProductViaSearch(sku: string): Promise<boolean> {
+        try {
+            const currentUrl = this.page.url();
+            if (!currentUrl.includes('walmart.com')) {
+                await this.navigate('https://www.walmart.com');
+                await this.delay(1500, 2500);
+            }
+
+            const searchBox = this.page.locator(this.selectors.searchBox).first();
+            await searchBox.waitFor({ timeout: 10000 });
+
+            const searchBounds = await searchBox.boundingBox();
+            if (searchBounds) {
+                await humanMouseMove(this.page,
+                    searchBounds.x + searchBounds.width / 2,
+                    searchBounds.y + searchBounds.height / 2
+                );
+            }
+
+            await searchBox.click();
+            await this.delay(300, 600);
+
+            for (const char of sku) {
+                await this.page.keyboard.type(char, { delay: 50 + Math.random() * 130 });
+                if (Math.random() < 0.15) {
+                    await this.delay(200, 400);
+                }
+            }
+            await this.delay(500, 1000);
+
+            await this.page.keyboard.press('Enter');
+            await this.page.waitForLoadState('domcontentloaded');
+            await this.delay(2000, 3000);
+
+            const productLink = this.page.locator(`a[href*="/ip/${sku}"]`).first();
+            const exists = await productLink.count() > 0;
+
+            if (exists) {
+                const linkBounds = await productLink.boundingBox();
+                if (linkBounds) {
+                    if (linkBounds.y > 600) {
+                        await humanScroll(this.page, linkBounds.y - 300);
+                        await this.delay(500, 1000);
+                    }
+
+                    await humanMouseMove(this.page,
+                        linkBounds.x + linkBounds.width / 2,
+                        linkBounds.y + linkBounds.height / 2
+                    );
+                }
+
+                await productLink.click();
+                await this.page.waitForLoadState('domcontentloaded');
+                await this.delay(2000, 3000);
+
+                console.log(`  Navigated via search`);
+                return true;
+            }
+
+            return false;
+        } catch (err: any) {
+            console.log(`  Search navigation failed: ${err.message}`);
+            return false;
+        }
     }
 
     async searchForItem(item: string): Promise<void> {
@@ -112,8 +183,6 @@ export class WalmartPage extends BasePage {
             return false;
         }
     }
-
-
 
     async extractFromDOM(sku: string): Promise<ScrapedProduct | null> {
         const selectors = {

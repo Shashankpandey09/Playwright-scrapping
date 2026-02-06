@@ -1,5 +1,7 @@
 node_modules
+extensions/ublock-origin
 dist
 docs
 profiles
 playwright-report
+profiles.bak1/worker_0_0

@@ -6,6 +6,4 @@ export const IDENTITY_POOL = [
         viewport: { width: 480, height: 272 }
     },
 
-
-
 ] as const;

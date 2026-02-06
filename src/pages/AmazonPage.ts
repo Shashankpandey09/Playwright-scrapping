@@ -35,7 +35,7 @@ export class AmazonPage extends BasePage {
     }
 
     async goToHome(): Promise<void> {
-        await this.navigate('https://www.amazon.in');
+        await this.navigate('https://www.amazon.com/');
         await this.delay(1000, 2000);
     }
 

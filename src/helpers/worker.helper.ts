@@ -26,7 +26,7 @@ const STEALTH_ARGS = [
 
 export async function launchWorker(config: WorkerConfig): Promise<BrowserContext> {
     const { workerIndex, headless = true } = config;
-    // Use unique timestamped profile to avoid Windows Crashpad lock issues
+
     const timestamp = Date.now();
     const profileDir = path.join(process.cwd(), 'profiles', `worker_${workerIndex}_${profileVersion}`);
     const workerIdentity = IDENTITY_POOL[Math.floor(Math.random() * IDENTITY_POOL.length)];
@@ -65,15 +65,40 @@ export async function launchWorker(config: WorkerConfig): Promise<BrowserContext
         };
     }
 
-    // Clean up stale lock file (safe - doesn't affect cookies/cache/fingerprint)
-    const lockPath = path.join(profileDir, 'SingletonLock');
-    if (fs.existsSync(lockPath)) {
-        try {
-            fs.unlinkSync(lockPath);
-            console.log(`[Worker ${workerIndex}] Cleaned up stale SingletonLock.`);
-        } catch (err) {
-            console.warn(`[Worker ${workerIndex}] Could not delete lock: ${err}`);
+    const lockFiles = [
+        'SingletonLock',
+        'SingletonSocket',
+        'SingletonCookie',
+        'lockfile',
+        'CrashpadMetrics-active.pma',
+        'BrowserMetrics-spare.pma'
+    ];
+
+    console.log(`[Worker ${workerIndex}] Checking for stale locks in ${profileDir}`);
+
+    let hasLock = false;
+    let foundLocks: string[] = [];
+    if (fs.existsSync(profileDir)) {
+        for (const lockFile of lockFiles) {
+            const lockPath = path.join(profileDir, lockFile);
+            if (fs.existsSync(lockPath)) {
+                hasLock = true;
+                foundLocks.push(lockFile);
+            }
         }
+    }
+
+    if (hasLock) {
+        console.log(`[Worker ${workerIndex}] Found stale locks: ${foundLocks.join(', ')}`);
+        console.log(`[Worker ${workerIndex}] Deleting entire profile directory`);
+        try {
+            fs.rmSync(profileDir, { recursive: true, force: true });
+            console.log(`[Worker ${workerIndex}] Profile deleted successfully`);
+        } catch (err) {
+            console.warn(`[Worker ${workerIndex}] Could not delete profile: ${err}`);
+        }
+    } else {
+        console.log(`[Worker ${workerIndex}] No stale locks found, using existing profile`);
     }
 
 
@@ -113,7 +138,6 @@ export async function launchWorker(config: WorkerConfig): Promise<BrowserContext
 }
 
 export async function deleteWorkerProfile(workerIndex: number): Promise<void> {
-    // Profiles are disposable (timestamped) - auto-cleaned on next `npm run dev`
     profileVersion++;
     console.log(`[Worker ${workerIndex}] Profile cleanup skipped (using disposable profiles)`);
 }

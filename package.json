@@ -5,8 +5,8 @@
   "main": "dist/scraper.js",
   "scripts": {
     "test": "jest",
-    "start": "rimraf ./profiles && tsc && node dist/scraper.js",
-    "dev": "rimraf ./profiles &&tsc && node dist/scraper.js",
+    "start": "tsc && node dist/scraper.js",
+    "dev": "tsc && node dist/scraper.js",
     "build": "tsc"
   },
   "keywords": [],

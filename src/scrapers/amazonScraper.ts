@@ -11,8 +11,9 @@ const DEFAULT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 export async function scrapeAmazon(sku: string): Promise<ScrapedProduct | null> {
     console.log(`Processing ${sku}`);
 
-    // Launch a fresh, stateless browser (Incognito) - Prevents file lock conflicts with Worker Profile
+
     const browser = await chromium.launch({
+
         headless: true,
         args: ['--disable-blink-features=AutomationControlled'],
         channel: 'chrome'

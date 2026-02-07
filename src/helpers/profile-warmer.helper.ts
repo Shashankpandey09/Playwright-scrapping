@@ -38,6 +38,46 @@ export async function warmProfile(ctx: BrowserContext, config: WarmingConfig): P
         });
         await randomDelay(1000, 2000);
 
+        // Reddit Warmup
+        try {
+            console.log(`  Visiting Reddit for extended warmup...`);
+            await page.goto('https://www.reddit.com', { waitUntil: 'domcontentloaded', timeout: 15000 });
+            await randomDelay(2000, 4000);
+
+            // Scroll a bit to load feed
+            await page.mouse.wheel(0, 500);
+            await randomDelay(1500, 2500);
+
+            // Try to open a post
+            const postSelector = 'a[href*="/r/"][href*="/comments/"]';
+            const posts = await page.$$(postSelector);
+
+            if (posts.length > 0) {
+                const randomPost = posts[Math.floor(Math.random() * Math.min(5, posts.length))];
+                // Scroll to view
+                await randomPost.scrollIntoViewIfNeeded();
+                await randomDelay(500, 1000);
+
+                await randomPost.click();
+                console.log(`  Opened a Reddit post, reading...`);
+
+                // Simulate reading: 5-10 seconds
+                const readTime = 5000 + Math.random() * 5000;
+                const startTime = Date.now();
+
+                while (Date.now() - startTime < readTime) {
+                    // Slow scroll down
+                    await page.mouse.wheel(0, 100 + Math.random() * 50);
+                    await randomDelay(1000, 2000);
+                }
+
+                console.log(`  Finished reading post`);
+                await page.goBack();
+                await randomDelay(1000, 2000);
+            }
+        } catch (e) {
+            console.log(`  Reddit warmup skipped: ${e}`);
+        }
 
         await visitSite(page, 'https://www.walmart.com', {
             name: 'Walmart',

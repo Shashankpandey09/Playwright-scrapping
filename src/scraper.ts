@@ -8,14 +8,13 @@ import { writeProductsToCSV, transformToCSV, retryWithBackoff, logError, clearEr
 import { launchWorker, verifyWorkerIP, deleteWorkerProfile } from './helpers/worker.helper';
 import { BrowserContext } from 'playwright';
 
-const MAX_CONCURRENCY = 2;
 const MAX_RETRIES = 2;
 const VERIFY_IP = false;
 const PRODUCTS_PER_SESSION = 10;
 const DELAY_BETWEEN_PRODUCTS_MS = [5000, 8000];
 const AMAZONConc = 2;
 const walmartConc = 1;
-const REWARM_AFTER_PRODUCTS = 10;
+
 
 async function main() {
     clearErrorLog();
@@ -83,6 +82,7 @@ async function processAmazonItem(item: SKUItem, results: ProductData[]): Promise
 
         if (scrapedData) {
             const productData = transformToCSV(item.SKU, item.Type, scrapedData);
+
             results.push(productData);
         }
     } catch (err: any) {
@@ -96,7 +96,7 @@ async function processWalmartBatch(batch: SKUItem[], workerIndex: number, result
     let sessionFailed = false;
 
     try {
-        ctx = await launchWorker({ workerIndex, headless: false });
+        ctx = await launchWorker({ workerIndex, headless: true });
 
         if (VERIFY_IP) await verifyWorkerIP(ctx);
 
@@ -111,7 +111,6 @@ async function processWalmartBatch(batch: SKUItem[], workerIndex: number, result
                 await new Promise(r => setTimeout(r, delay));
             }
 
-            console.log(`Processing ${item.SKU}`);
 
             try {
                 const scrapedData = await retryWithBackoff(

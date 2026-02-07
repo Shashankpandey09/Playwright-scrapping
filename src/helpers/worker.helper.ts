@@ -32,28 +32,33 @@ export async function launchWorker(config: WorkerConfig): Promise<BrowserContext
     const workerIdentity = IDENTITY_POOL[Math.floor(Math.random() * IDENTITY_POOL.length)];
     const contextOptions: any = {
         channel: 'chrome',
-        headless,
-        args: [...STEALTH_ARGS, '--headless=new'],
+        headless: false,
+        args: [...STEALTH_ARGS,],
 
         userAgent: workerIdentity.ua,
         viewport: workerIdentity.viewport,
-        deviceScaleFactor: 1,
-        hasTouch: false,
-        isMobile: false,
+        deviceScaleFactor: workerIdentity.deviceScaleFactor || 1,
+        hasTouch: workerIdentity.hasTouch || false,
+        isMobile: workerIdentity.isMobile || false,
         extraHTTPHeaders: {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
+
             "Upgrade-Insecure-Requests": "1",
             "Sec-Fetch-Dest": "document",
             "Sec-Fetch-Mode": "navigate",
             "Sec-Fetch-Site": "none",
             "Sec-Fetch-User": "?1",
             "Sec-Ch-Ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
-            "Sec-Ch-Ua-Mobile": "?0",
-            "Sec-Ch-Ua-Platform": '"Windows"'
+            "Sec-Ch-Ua-Mobile": `?${workerIdentity.isMobile ? 1 : 0}`,
+            "Sec-Ch-Ua-Platform": `${workerIdentity.name}`,
+            "locale": "en-US",
+            "timezoneId": "America/New_York",
+
         },
         permissions: ['geolocation'],
+        geolocation: { latitude: 40.7128, longitude: -74.0060 },
+
     };
 
     if (PROXY_CONFIG.enabled) {

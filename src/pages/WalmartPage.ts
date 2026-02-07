@@ -45,19 +45,20 @@ export class WalmartPage extends BasePage {
 
             const searchBounds = await searchBox.boundingBox();
             if (searchBounds) {
-                await humanMouseMove(this.page,
-                    searchBounds.x + searchBounds.width / 2,
-                    searchBounds.y + searchBounds.height / 2
-                );
+
+                const targetX = searchBounds.x + searchBounds.width * (0.2 + Math.random() * 0.6);
+                const targetY = searchBounds.y + searchBounds.height * (0.2 + Math.random() * 0.6);
+
+                await humanMouseMove(this.page, targetX, targetY);
             }
 
             await searchBox.click();
             await this.delay(300, 600);
 
             for (const char of sku) {
-                await this.page.keyboard.type(char, { delay: 50 + Math.random() * 130 });
-                if (Math.random() < 0.15) {
-                    await this.delay(200, 400);
+                await this.page.keyboard.type(char, { delay: 500 + Math.random() * 200 }); // Faster, more natural typing
+                if (Math.random() < 0.1) {
+                    await this.delay(100, 300);
                 }
             }
             await this.delay(500, 1000);
@@ -126,63 +127,83 @@ export class WalmartPage extends BasePage {
     }
 
     async solveCaptcha(): Promise<boolean> {
-        console.log('got captcha, trying to solve...');
+        console.log('captcha detected — executing observed human pattern (fumble + long shaky hold)');
 
         try {
-            if (this.page.isClosed()) {
-                console.log('page died, cant solve');
-                return false;
+            if (this.page.isClosed()) return false;
+
+            const captchaBtn = this.page.locator('#px-captcha');
+            if (!(await captchaBtn.isVisible().catch(() => false))) return false;
+
+            const box = await captchaBtn.boundingBox();
+            if (!box) return false;
+
+            // Target a random point within the central 60% of the button, not dead center
+            const targetX = box.x + box.width / 2 + (Math.random() - 0.5) * (box.width * 0.6);
+            const targetY = box.y + box.height / 2 + (Math.random() - 0.5) * (box.height * 0.6);
+
+            // 1. Move to button with human behavior
+            await humanMouseMove(this.page, targetX, targetY, { steps: 50, jitter: true });
+
+            // 2. Perform 2-3 short "fumble" clicks/releases
+            const fumbles = 2 + Math.floor(Math.random() * 2); // 2 or 3
+            console.log(`performing ${fumbles} short fumble presses...`);
+
+            for (let i = 0; i < fumbles; i++) {
+
+                await this.page.mouse.down();
+                // Short hold (0.5 - 1.5s)
+                await this.delay(500 + Math.random() * 1000, 1500);
+                // Release
+                await this.page.mouse.up();
+                // Wait between fumbles
+                await this.delay(300 + Math.random() * 500, 800);
+
+                // Slight adjustment of position between fumbles
+                if (i < fumbles - 1) {
+                    const adjustX = targetX + (Math.random() - 0.5) * 5;
+                    const adjustY = targetY + (Math.random() - 0.5) * 5;
+                    await this.page.mouse.move(adjustX, adjustY);
+                }
             }
 
-            const captchaButton = this.page.locator('#px-captcha');
-            const isVisible = await captchaButton.isVisible().catch(() => false);
-
-            if (!isVisible) {
-                return false;
-            }
-
-            const loc = await captchaButton.boundingBox();
-            if (!loc) return false;
-
-            const x_loc = loc.x + loc.width / 2;
-            const y_loc = loc.y + loc.height / 2;
-
-            await this.page.mouse.move(x_loc, y_loc, { steps: 25 });
-
-            await this.delay(300, 800);
+            // 3. Final Long Hold with Shakiness/Pressure simulation
+            console.log('performing final long hold with pressure simulation...');
+            await this.page.mouse.move(targetX, targetY); // Ensure we are still roughly there
             await this.page.mouse.down();
-            console.log('holding...');
 
-            const t_hold = 12000 + Math.random() * 2000;
-            await this.delay(t_hold, t_hold + 500);
+            const longHoldDuration = 10000 + Math.random() * 3000; // 10-13 seconds
+            const startTime = Date.now();
 
-            if (this.page.isClosed()) {
-                console.log('page crashed mid-hold');
-                return false;
+            while (Date.now() - startTime < longHoldDuration) {
+                if (this.page.isClosed()) return false;
+
+                // Simulate "shakiness" or "extra pressure" by micro-movements
+                // Very small movements: +/- 1 or 2 pixels
+                const jitterX = targetX + (Math.random() - 0.5) * 3;
+                const jitterY = targetY + (Math.random() - 0.5) * 3;
+
+                await this.page.mouse.move(jitterX, jitterY);
+
+                // Wait a small bit between jitters
+                await this.delay(100, 300);
             }
 
+            console.log('releasing final hold...');
             await this.page.mouse.up();
-            console.log('released, waiting...');
 
-            await this.delay(4000, 7000);
+            // 4. Wait for result
+            await this.delay(3000, 6000);
 
-            if (this.page.isClosed()) {
-                console.log('page died after release');
-                return false;
-            }
-
-            const stillHasCaptcha = await this.hasCaptcha();
-            return !stillHasCaptcha;
+            const stillThere = await this.hasCaptcha();
+            return !stillThere;
 
         } catch (error: any) {
-            if (error.message?.includes('closed') || error.message?.includes('Target')) {
-                console.log('browser crashed during captcha');
-            } else {
-                console.log('captcha failed');
-            }
+            console.warn(`captcha solve failed: ${error.message}`);
             return false;
         }
     }
+
 
     async extractFromDOM(sku: string): Promise<ScrapedProduct | null> {
         const selectors = {
